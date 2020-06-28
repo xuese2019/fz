@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jiushan.fuzhu.biz.user.db.UserRepository;
 import org.jiushan.fuzhu.biz.user.model.UserModel;
 import org.jiushan.fuzhu.util.uuid.UuidUtil;
+import org.reactivestreams.Publisher;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
@@ -27,6 +29,12 @@ public class UserHandler {
         this.userRepository = userRepository;
     }
 
+    /**
+     * 新增
+     *
+     * @param request
+     * @return
+     */
     public Mono<ServerResponse> add(ServerRequest request) {
         return request.exchange()
                 .getFormData()
@@ -40,85 +48,121 @@ public class UserHandler {
                     return model;
                 })
                 .flatMap(u -> {
-                    return userRepository.findByAcc(Objects.requireNonNull(u.getAcc()))
+                    return this.userRepository.findByAcc(u.getAcc())
                             .flatMap(m -> {
-                                return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).bodyValue("账号重复");
+                                return Mono.just(-1);
                             })
-                            .switchIfEmpty(ServerResponse.ok().body(m -> {
-                                userRepository.insert(u)
-                                        .map(a -> {
-                                            return "成功";
-                                        });
-                            }, String.class));
+                            .switchIfEmpty(Mono.just(0))
+                            .flatMap(f -> {
+                                log.info(String.valueOf(f));
+                                if (f == 0) {
+                                    return this.userRepository.insert(u)
+                                            .flatMap(a -> {
+                                                return ServerResponse.ok().build();
+                                            });
+                                } else {
+                                    return ServerResponse
+                                            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                            .bodyValue("账号重复");
+                                }
+                            });
                 });
     }
 
+    /**
+     * 根据id删除
+     *
+     * @param request
+     * @return
+     */
     public Mono<ServerResponse> remove(ServerRequest request) {
         String uuid = request.pathVariable("id");
-        return userRepository.findById(uuid)
+        return this.userRepository.findById(uuid)
                 .flatMap(f -> {
-                    return userRepository.deleteById(f.getId())
+                    return this.userRepository.deleteById(f.getId())
                             .then(ServerResponse.ok().build());
                 })
                 .switchIfEmpty(ServerResponse.notFound().build());
     }
 
+    /**
+     * 修改
+     *
+     * @param request
+     * @return
+     */
     public Mono<ServerResponse> edit(ServerRequest request) {
-        String uuid = request.pathVariable("uuid");
+        String uuid = request.pathVariable("id");
         return request.exchange()
                 .getFormData()
-                .flatMap(map -> {
-                    return userRepository.findById(uuid)
-                            .flatMap(f -> {
-                                UserModel model = new UserModel();
-                                model.setName(map.getFirst("name"));
-                                model.setId(uuid);
-                                userRepository.save(model);
-                                return ServerResponse.ok().build();
+                .flatMap(u -> {
+                    return this.userRepository.findById(uuid)
+                            .map(m -> {
+                                if (Objects.nonNull(u.getFirst("pwd"))) {
+                                    m.setPwd(u.getFirst("pwd"));
+                                }
+                                if (Objects.nonNull(u.getFirst("name"))) {
+                                    m.setName(u.getFirst("name"));
+                                }
+                                if (Objects.nonNull(u.getFirst("type"))) {
+                                    m.setType(Integer.valueOf(Objects.requireNonNull(u.getFirst("type"))));
+                                }
+                                return m;
                             })
-                            .switchIfEmpty(ServerResponse.notFound().build());
+                            .flatMap(f -> {
+                                return this.userRepository.save(f)
+                                        .flatMap(a -> {
+                                            return ServerResponse.ok().build();
+                                        });
+                            })
+                            .switchIfEmpty(ServerResponse
+                                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                    .bodyValue("未查询到当前数据"));
                 });
     }
 
+    /**
+     * 根据id查询
+     * @param request
+     * @return
+     */
     public Mono<ServerResponse> one(ServerRequest request) {
-        String uuid = request.pathVariable("uuid");
-        return userRepository.findById(uuid)
+        String uuid = request.pathVariable("id");
+        return this.userRepository.findById(uuid)
                 .flatMap(f -> {
                     f.setPwd(null);
                     return ServerResponse
                             .ok()
                             .contentType(MediaType.APPLICATION_JSON)
-                            .body(f, UserModel.class);
+                            .bodyValue(f);
                 })
-                .switchIfEmpty(ServerResponse.notFound().build());
+                .switchIfEmpty(ServerResponse
+                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .bodyValue("未查询到当前数据"));
     }
 
+    /**
+     * 分页条件查询
+     * @param request
+     * @return
+     */
     public Mono<ServerResponse> page(ServerRequest request) {
         int pageSize = Integer.parseInt(request.pathVariable("pageSize"));
         int pageNow = Integer.parseInt(request.pathVariable("pageNow"));
         List<Sort.Order> orders = new ArrayList<>();
         orders.add(Sort.Order.asc("acc"));
         return request.formData()
-                .filter(u -> u.getFirst("acc") != null)
+//                .filter(u -> u.getFirst("acc") != null)
                 .flatMap(u -> {
                     UserModel model = new UserModel();
-                    model.setAcc(u.getFirst("acc"));
-                    return ServerResponse
-                            .ok()
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .body(this.userRepository.findAll(Example.of(model), Sort.by(orders))
-                                            .skip((pageSize - 1) * pageNow)
-                                            .limitRate(pageSize)
-                                    , UserModel.class);
-                })
-                .switchIfEmpty(
-                        ServerResponse
-                                .ok()
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .body(this.userRepository.findAll(Sort.by(orders))
-                                                .skip((pageSize - 1) * pageNow)
-                                                .limitRate(pageSize)
-                                        , UserModel.class)
-                );
+                    if (u.getFirst("acc") != null) {
+                        model.setAcc(u.getFirst("acc"));
+                    }
+                    Flux<UserModel> userModelFlux = this.userRepository.findAll(Example.of(model), Sort.by(orders))
+                            .skip((pageSize - 1) * pageNow)
+                            .limitRate(pageSize);
+                    return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(userModelFlux,Flux.class);
+
+                });
     }
 }

@@ -9,6 +9,9 @@ import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.RouterFunctions;
 import org.springframework.web.reactive.function.server.ServerResponse;
 
+import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.web.reactive.function.server.RequestPredicates.accept;
+
 /**
  * 接口api
  */
@@ -32,7 +35,7 @@ public class AllRouters {
                         RequestPredicates.path("/k"),
                         RouterFunctions.route(
                                 RequestPredicates.POST("/k")
-                                        .and(RequestPredicates.accept(MediaType.TEXT_PLAIN)),
+                                        .and(accept(MediaType.TEXT_PLAIN)),
                                 userHandler::edit
                         )
                 );
