@@ -1,0 +1,19 @@
+server:
+  port: 9000
+spring:
+  thymeleaf:
+    encoding: UTF-8
+    mode: LEGACYHTML5
+    prefix: classpath:/templates/
+    suffix: .html
+    check-template: true
+    cache: false
+  data:
+    mongodb:
+      host: localhost
+      database: fuzhu
+      port: 27017
+logging:
+  level:
+    org.springframework.data.mongodb.core: debug
+    web: debug

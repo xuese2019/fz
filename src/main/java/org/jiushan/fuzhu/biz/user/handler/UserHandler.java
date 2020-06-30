@@ -1,10 +1,15 @@
 package org.jiushan.fuzhu.biz.user.handler;
 
+import com.mongodb.BasicDBObject;
+import com.mongodb.DBObject;
 import lombok.extern.slf4j.Slf4j;
 import org.jiushan.fuzhu.biz.user.db.UserRepository;
 import org.jiushan.fuzhu.biz.user.model.UserModel;
+import org.jiushan.fuzhu.biz.user.model.interfaces.UserAddValid;
+import org.jiushan.fuzhu.biz.user.model.interfaces.UserEditValid;
+import org.jiushan.fuzhu.util.check.CheckUtil;
+import org.jiushan.fuzhu.util.md5.Md5Util;
 import org.jiushan.fuzhu.util.uuid.UuidUtil;
-import org.reactivestreams.Publisher;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -41,13 +46,22 @@ public class UserHandler {
                 .map(map -> {
                     UserModel model = new UserModel();
                     model.setAcc(map.getFirst("acc"));
-                    model.setPwd(map.getFirst("pwd"));
+                    model.setPwd(Md5Util.md5("123456"));
                     model.setId(UuidUtil.uuid());
                     model.setType(0);
                     model.setName(map.getFirst("name"));
                     return model;
                 })
                 .flatMap(u -> {
+
+//                    校验参数
+                    String check = CheckUtil.check(u, UserAddValid.class);
+                    if (check != null && !check.isEmpty()) {
+                        return ServerResponse
+                                .status(HttpStatus.BAD_REQUEST)
+                                .bodyValue(check);
+                    }
+
                     return this.userRepository.findByAcc(u.getAcc())
                             .flatMap(m -> {
                                 return Mono.just(-1);
@@ -110,6 +124,14 @@ public class UserHandler {
                                 return m;
                             })
                             .flatMap(f -> {
+                                //                    校验参数
+                                String check = CheckUtil.check(f, UserEditValid.class);
+                                if (check != null && !check.isEmpty()) {
+                                    return ServerResponse
+                                            .status(HttpStatus.BAD_REQUEST)
+                                            .bodyValue(check);
+                                }
+
                                 return this.userRepository.save(f)
                                         .flatMap(a -> {
                                             return ServerResponse.ok().build();
@@ -122,7 +144,32 @@ public class UserHandler {
     }
 
     /**
+     * 修改
+     *
+     * @param request
+     * @return
+     */
+    public Mono<ServerResponse> restPwd(ServerRequest request) {
+        String uuid = request.pathVariable("id");
+        return this.userRepository.findById(uuid)
+                .map(m->{
+                    m.setPwd(Md5Util.md5("123456"));
+                    return m;
+                })
+                .flatMap(f -> {
+                    return this.userRepository.save(f)
+                            .flatMap(a -> {
+                                return ServerResponse.ok().build();
+                            });
+                })
+                .switchIfEmpty(ServerResponse
+                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .bodyValue("未查询到当前数据"));
+    }
+
+    /**
      * 根据id查询
+     *
      * @param request
      * @return
      */
@@ -143,6 +190,7 @@ public class UserHandler {
 
     /**
      * 分页条件查询
+     *
      * @param request
      * @return
      */
@@ -152,16 +200,19 @@ public class UserHandler {
         List<Sort.Order> orders = new ArrayList<>();
         orders.add(Sort.Order.asc("acc"));
         return request.formData()
-//                .filter(u -> u.getFirst("acc") != null)
                 .flatMap(u -> {
                     UserModel model = new UserModel();
-                    if (u.getFirst("acc") != null) {
+                    if (u.getFirst("acc") != null && !Objects.requireNonNull(u.getFirst("acc")).isEmpty()) {
                         model.setAcc(u.getFirst("acc"));
                     }
                     Flux<UserModel> userModelFlux = this.userRepository.findAll(Example.of(model), Sort.by(orders))
-                            .skip((pageSize - 1) * pageNow)
-                            .limitRate(pageSize);
-                    return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(userModelFlux,Flux.class);
+                            .skip(pageNow * pageSize)
+                            .limitRequest(pageSize)
+                            .map(f -> {
+                                f.setPwd(null);
+                                return f;
+                            });
+                    return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(userModelFlux, Flux.class);
 
                 });
     }

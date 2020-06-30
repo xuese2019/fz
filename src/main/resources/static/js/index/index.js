@@ -1,0 +1,23 @@
+function login(obj){
+    $.ajax({
+        url:root+"/api/login/login",
+        dataType:"text",
+        data:$('#login-form').serialize(),
+        type:"POST",
+        beforeSend:function(){
+            //请求前的处理
+            $(obj).attr('disabled',true);
+        },
+        success:function(req){
+            //请求成功时处理
+            localStorage.setItem("auth",req);
+            location.replace(root+"/home");
+        },
+        complete:function(){
+            $(obj).attr('disabled',false);
+        },
+        error:function(e){
+            alert(e.responseText);
+        }
+    });
+}

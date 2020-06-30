@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: org.webjars.npm:sweetalert2:9.15.1">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/org/webjars/npm/sweetalert2/9.15.1/sweetalert2-9.15.1.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/org/webjars/npm/sweetalert2/9.15.1/sweetalert2-9.15.1-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/org/webjars/npm/sweetalert2/9.15.1/sweetalert2-9.15.1-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
