@@ -27,7 +27,8 @@ public class PageRouters {
             @Value("classpath:/templates/index.html") final Resource indexHtml,
             @Value("classpath:/templates/home/home.html") final Resource homeHtml,
             @Value("classpath:/templates/home/index.html") final Resource homeIndexHtml,
-            @Value("classpath:/templates/user/page.html") final Resource userPageHtml
+            @Value("classpath:/templates/user/page.html") final Resource userPageHtml,
+            @Value("classpath:/templates/classification/page.html") final Resource classificationPageHtml
     ) {
         return RouterFunctions.route(RequestPredicates.GET("/"),
                 r -> ServerResponse.ok().contentType(MediaType.TEXT_HTML).bodyValue(indexHtml))
@@ -37,6 +38,8 @@ public class PageRouters {
                         r -> ServerResponse.ok().contentType(MediaType.TEXT_HTML).bodyValue(homeIndexHtml))
                 .andRoute(RequestPredicates.GET("/user/page"),
                         r -> ServerResponse.ok().contentType(MediaType.TEXT_HTML).bodyValue(userPageHtml))
+                .andRoute(RequestPredicates.GET("/classification/page"),
+                        r -> ServerResponse.ok().contentType(MediaType.TEXT_HTML).bodyValue(classificationPageHtml))
                 ;
     }
 }
