@@ -1,13 +1,14 @@
-package org.jiushan.fuzhu.biz.product.handler;
+package org.jiushan.fuzhu.biz.stock.handler;
 
 import lombok.extern.slf4j.Slf4j;
-import org.jiushan.fuzhu.biz.product.db.ProductRepository;
-import org.jiushan.fuzhu.biz.product.model.ProductModel;
-import org.jiushan.fuzhu.biz.product.model.interfaces.ProductAddValid;
-import org.jiushan.fuzhu.biz.product.model.interfaces.ProductEditValid;
+import org.jiushan.fuzhu.biz.stock.db.StockRepository;
+import org.jiushan.fuzhu.biz.stock.model.StockModel;
+import org.jiushan.fuzhu.biz.stock.model.interfaces.StockAddValid;
+import org.jiushan.fuzhu.biz.stock.model.interfaces.StockEditValid;
 import org.jiushan.fuzhu.util.check.CheckUtil;
 import org.jiushan.fuzhu.util.uuid.UuidUtil;
 import org.springframework.data.domain.Example;
+import org.springframework.data.domain.ExampleMatcher;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -23,12 +24,12 @@ import java.util.Objects;
 
 @Slf4j
 @Component
-public class ProductHandler {
+public class StockHandler {
 
-    private ProductRepository productRepository;
+    private StockRepository stockRepository;
 
-    public ProductHandler(ProductRepository productRepository) {
-        this.productRepository = productRepository;
+    public StockHandler(StockRepository stockRepository) {
+        this.stockRepository = stockRepository;
     }
 
     /**
@@ -41,27 +42,24 @@ public class ProductHandler {
         return request.exchange()
                 .getFormData()
                 .map(map -> {
-                    ProductModel model = new ProductModel();
+                    StockModel model = new StockModel();
                     model.setId(UuidUtil.uuid());
-                    model.setName(map.getFirst("name"));
-                    model.setClassificationId(map.getFirst("classificationId"));
-                    model.setBrief(map.getFirst("brief"));
-                    model.setPrice(Double.valueOf(Objects.requireNonNull(map.getFirst("price"))));
-                    model.setImg(map.getFirst("img"));
-                    model.setShelf(-1);
+                    model.setProductId(map.getFirst("productId"));
+                    model.setSpecifications(map.getFirst("specifications"));
+                    model.setStock(Integer.valueOf(Objects.requireNonNull(map.getFirst("stock"))));
                     return model;
                 })
                 .flatMap(u -> {
 
 //                    校验参数
-                    String check = CheckUtil.check(u, ProductAddValid.class);
+                    String check = CheckUtil.check(u, StockAddValid.class);
                     if (check != null && !check.isEmpty()) {
                         return ServerResponse
                                 .status(HttpStatus.BAD_REQUEST)
                                 .bodyValue(check);
                     }
 
-                    return this.productRepository.findByName(u.getName())
+                    return this.stockRepository.findBySpecifications(u.getSpecifications())
                             .flatMap(m -> {
                                 return Mono.just(-1);
                             })
@@ -69,14 +67,14 @@ public class ProductHandler {
                             .flatMap(f -> {
                                 log.info(String.valueOf(f));
                                 if (f == 0) {
-                                    return this.productRepository.insert(u)
+                                    return this.stockRepository.insert(u)
                                             .flatMap(a -> {
                                                 return ServerResponse.ok().build();
                                             });
                                 } else {
                                     return ServerResponse
                                             .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                            .bodyValue("账号重复");
+                                            .bodyValue("规格重复");
                                 }
                             });
                 });
@@ -91,11 +89,11 @@ public class ProductHandler {
     public Mono<ServerResponse> remove(ServerRequest request) {
         return ServerResponse
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .bodyValue("全局不允许删除商品信息");
+                .bodyValue("全局不允许删除");
 //        String uuid = request.pathVariable("id");
-//        return this.productRepository.findById(uuid)
+//        return this.stockRepository.findById(uuid)
 //                .flatMap(f -> {
-//                    return this.productRepository.deleteById(f.getId())
+//                    return this.stockRepository.deleteById(f.getId())
 //                            .then(ServerResponse.ok().build());
 //                })
 //                .switchIfEmpty(ServerResponse.notFound().build());
@@ -112,35 +110,26 @@ public class ProductHandler {
         return request.exchange()
                 .getFormData()
                 .flatMap(u -> {
-                    return this.productRepository.findById(uuid)
+                    return this.stockRepository.findById(uuid)
                             .map(m -> {
-                                if (Objects.nonNull(u.getFirst("name"))) {
-                                    m.setName(u.getFirst("name"));
+                                if (Objects.nonNull(u.getFirst("specifications"))) {
+                                    m.setSpecifications(u.getFirst("specifications"));
                                 }
-                                if (Objects.nonNull(u.getFirst("classificationId"))) {
-                                    m.setClassificationId(u.getFirst("classificationId"));
-                                }
-                                if (Objects.nonNull(u.getFirst("price"))) {
-                                    m.setPrice(Double.valueOf(Objects.requireNonNull(u.getFirst("price"))));
-                                }
-                                if (Objects.nonNull(u.getFirst("brief"))) {
-                                    m.setBrief(u.getFirst("brief"));
-                                }
-                                if (Objects.nonNull(u.getFirst("img"))) {
-                                    m.setImg(u.getFirst("img"));
+                                if (Objects.nonNull(u.getFirst("stock"))) {
+                                    m.setStock(Integer.valueOf(Objects.requireNonNull(u.getFirst("stock"))));
                                 }
                                 return m;
                             })
                             .flatMap(f -> {
                                 //                    校验参数
-                                String check = CheckUtil.check(f, ProductEditValid.class);
+                                String check = CheckUtil.check(f, StockEditValid.class);
                                 if (check != null && !check.isEmpty()) {
                                     return ServerResponse
                                             .status(HttpStatus.BAD_REQUEST)
                                             .bodyValue(check);
                                 }
 
-                                return this.productRepository.save(f)
+                                return this.stockRepository.save(f)
                                         .flatMap(a -> {
                                             return ServerResponse.ok().build();
                                         });
@@ -160,14 +149,12 @@ public class ProductHandler {
         return request.exchange()
                 .getFormData()
                 .flatMap(u -> {
-                    return this.productRepository.findById(uuid)
+                    return this.stockRepository.findById(uuid)
                             .map(m -> {
-                                int i = (m.getShelf() == null || m.getShelf() < 0) ? 0 : -1;
-                                m.setShelf(i);
                                 return m;
                             })
                             .flatMap(f -> {
-                                return this.productRepository.save(f)
+                                return this.stockRepository.save(f)
                                         .flatMap(a -> {
                                             return ServerResponse.ok().build();
                                         });
@@ -186,7 +173,7 @@ public class ProductHandler {
      */
     public Mono<ServerResponse> one(ServerRequest request) {
         String uuid = request.pathVariable("id");
-        return this.productRepository.findById(uuid)
+        return this.stockRepository.findById(uuid)
                 .flatMap(f -> {
                     return ServerResponse
                             .ok()
@@ -209,24 +196,19 @@ public class ProductHandler {
         int pageNow = Integer.parseInt(request.pathVariable("pageNow"));
         List<Sort.Order> orders = new ArrayList<>();
         orders.add(Sort.Order.asc("name"));
-        if (pageSize > 0) {
-            return request.formData()
-                    .flatMap(u -> {
-                        ProductModel model = new ProductModel();
-                        if (u.getFirst("name") != null && !Objects.requireNonNull(u.getFirst("name")).isEmpty()) {
-                            model.setName(u.getFirst("name"));
-                        }
-                        Flux<ProductModel> ProductModelFlux = this.productRepository.findAll(Example.of(model), Sort.by(orders))
-                                .skip(pageNow * pageSize)
-                                .limitRequest(pageSize);
-                        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(ProductModelFlux, Flux.class);
-                    });
-        } else {
-            return request.formData()
-                    .flatMap(u -> {
-                        Flux<ProductModel> ProductModelFlux = this.productRepository.findAll(Sort.by(orders));
-                        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(ProductModelFlux, Flux.class);
-                    });
-        }
+        return request.formData()
+                .flatMap(u -> {
+                    StockModel model = new StockModel();
+                    ExampleMatcher matcher = ExampleMatcher.matching()
+                            .withStringMatcher(ExampleMatcher.StringMatcher.CONTAINING) //改变默认字符串匹配方式：模糊查询
+                            .withIgnoreCase(true) //改变默认大小写忽略方式：忽略大小写
+                            .withMatcher("name", ExampleMatcher.GenericPropertyMatchers.contains()) //采用“包含匹配”的方式查询
+                            .withIgnorePaths("pageNum", "pageSize");  //忽略属性，不参与查询;
+                    Flux<StockModel> stockModelFlux = this.stockRepository.findAll(Example.of(model,matcher), Sort.by(orders))
+                            .skip(pageNow * pageSize)
+                            .limitRequest(pageSize);
+                    return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(stockModelFlux, Flux.class);
+
+                });
     }
 }

@@ -1,7 +1,5 @@
 package org.jiushan.fuzhu.biz.user.handler;
 
-import com.mongodb.BasicDBObject;
-import com.mongodb.DBObject;
 import lombok.extern.slf4j.Slf4j;
 import org.jiushan.fuzhu.biz.user.db.UserRepository;
 import org.jiushan.fuzhu.biz.user.model.UserModel;
@@ -11,6 +9,7 @@ import org.jiushan.fuzhu.util.check.CheckUtil;
 import org.jiushan.fuzhu.util.md5.Md5Util;
 import org.jiushan.fuzhu.util.uuid.UuidUtil;
 import org.springframework.data.domain.Example;
+import org.springframework.data.domain.ExampleMatcher;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -152,7 +151,7 @@ public class UserHandler {
     public Mono<ServerResponse> restPwd(ServerRequest request) {
         String uuid = request.pathVariable("id");
         return this.userRepository.findById(uuid)
-                .map(m->{
+                .map(m -> {
                     m.setPwd(Md5Util.md5("123456"));
                     return m;
                 })
@@ -205,7 +204,12 @@ public class UserHandler {
                     if (u.getFirst("acc") != null && !Objects.requireNonNull(u.getFirst("acc")).isEmpty()) {
                         model.setAcc(u.getFirst("acc"));
                     }
-                    Flux<UserModel> userModelFlux = this.userRepository.findAll(Example.of(model), Sort.by(orders))
+                    ExampleMatcher matcher = ExampleMatcher.matching()
+                            .withStringMatcher(ExampleMatcher.StringMatcher.CONTAINING) //改变默认字符串匹配方式：模糊查询
+                            .withIgnoreCase(true) //改变默认大小写忽略方式：忽略大小写
+                            .withMatcher("acc", ExampleMatcher.GenericPropertyMatchers.contains()) //采用“包含匹配”的方式查询
+                            .withIgnorePaths("pageNum", "pageSize");  //忽略属性，不参与查询;
+                    Flux<UserModel> userModelFlux = this.userRepository.findAll(Example.of(model, matcher), Sort.by(orders))
                             .skip(pageNow * pageSize)
                             .limitRequest(pageSize)
                             .map(f -> {

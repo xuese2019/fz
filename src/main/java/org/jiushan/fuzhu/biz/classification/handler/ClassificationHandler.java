@@ -174,7 +174,7 @@ public class ClassificationHandler {
                                 .limitRequest(pageSize);
                         return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(ClassificationModelFlux, Flux.class);
                     });
-        }else{
+        } else {
             return request.formData()
                     .flatMap(u -> {
                         Flux<ClassificationModel> ClassificationModelFlux = this.classificationRepository.findAll(Sort.by(orders));

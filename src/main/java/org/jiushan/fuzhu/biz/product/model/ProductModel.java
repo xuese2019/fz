@@ -40,7 +40,7 @@ public class ProductModel {
     @Length(max = 100, message = "简介最大长度100位", groups = {ProductAddValid.class, ProductEditValid.class})
     private String brief;
 
-//    是否上架 0:是
+    //    是否上架 0:是
     private Integer shelf;
 
 }

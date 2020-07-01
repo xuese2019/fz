@@ -52,6 +52,9 @@ public class LoginHandler {
                     return this.userRepository.findByAcc(u.getAcc())
                             .filter(f -> (f != null && f.getPwd().equals(u.getPwd())))
                             .flatMap(m -> {
+                                if (m.getType() != 0) {
+                                    return ServerResponse.status(HttpStatus.BAD_REQUEST).bodyValue("禁止登录");
+                                }
                                 String jwt = JwtUtil.createJwt(m.getId()
                                         , m.getAcc()
                                         , "user");
