@@ -1,10 +1,10 @@
-package org.jiushan.fuzhu.biz.classification.handler;
+package org.jiushan.fuzhu.biz.product.handler;
 
 import lombok.extern.slf4j.Slf4j;
-import org.jiushan.fuzhu.biz.classification.db.ClassificationRepository;
-import org.jiushan.fuzhu.biz.classification.model.ClassificationModel;
-import org.jiushan.fuzhu.biz.classification.model.interfaces.ClassificationAddValid;
-import org.jiushan.fuzhu.biz.classification.model.interfaces.ClassificationEditValid;
+import org.jiushan.fuzhu.biz.product.db.ProductRepository;
+import org.jiushan.fuzhu.biz.product.model.ProductModel;
+import org.jiushan.fuzhu.biz.product.model.interfaces.ProductAddValid;
+import org.jiushan.fuzhu.biz.product.model.interfaces.ProductEditValid;
 import org.jiushan.fuzhu.util.check.CheckUtil;
 import org.jiushan.fuzhu.util.uuid.UuidUtil;
 import org.springframework.data.domain.Example;
@@ -23,12 +23,12 @@ import java.util.Objects;
 
 @Slf4j
 @Component
-public class ClassificationHandler {
+public class ProductHandler {
 
-    private ClassificationRepository classificationRepository;
+    private ProductRepository productRepository;
 
-    public ClassificationHandler(ClassificationRepository classificationRepository) {
-        this.classificationRepository = classificationRepository;
+    public ProductHandler(ProductRepository productRepository) {
+        this.productRepository = productRepository;
     }
 
     /**
@@ -41,22 +41,27 @@ public class ClassificationHandler {
         return request.exchange()
                 .getFormData()
                 .map(map -> {
-                    ClassificationModel model = new ClassificationModel();
+                    ProductModel model = new ProductModel();
                     model.setId(UuidUtil.uuid());
                     model.setName(map.getFirst("name"));
+                    model.setClassificationId(map.getFirst("classificationId"));
+                    model.setBrief(map.getFirst("brief"));
+                    model.setPrice(Double.valueOf(Objects.requireNonNull(map.getFirst("price"))));
+                    model.setImg(map.getFirst("img"));
+                    model.setShelf(-1);
                     return model;
                 })
                 .flatMap(u -> {
 
 //                    校验参数
-                    String check = CheckUtil.check(u, ClassificationAddValid.class);
+                    String check = CheckUtil.check(u, ProductAddValid.class);
                     if (check != null && !check.isEmpty()) {
                         return ServerResponse
                                 .status(HttpStatus.BAD_REQUEST)
                                 .bodyValue(check);
                     }
 
-                    return this.classificationRepository.findByName(u.getName())
+                    return this.productRepository.findByName(u.getName())
                             .flatMap(m -> {
                                 return Mono.just(-1);
                             })
@@ -64,7 +69,7 @@ public class ClassificationHandler {
                             .flatMap(f -> {
                                 log.info(String.valueOf(f));
                                 if (f == 0) {
-                                    return this.classificationRepository.insert(u)
+                                    return this.productRepository.insert(u)
                                             .flatMap(a -> {
                                                 return ServerResponse.ok().build();
                                             });
@@ -84,13 +89,16 @@ public class ClassificationHandler {
      * @return
      */
     public Mono<ServerResponse> remove(ServerRequest request) {
-        String uuid = request.pathVariable("id");
-        return this.classificationRepository.findById(uuid)
-                .flatMap(f -> {
-                    return this.classificationRepository.deleteById(f.getId())
-                            .then(ServerResponse.ok().build());
-                })
-                .switchIfEmpty(ServerResponse.notFound().build());
+        return ServerResponse
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .bodyValue("全局不允许删除商品信息");
+//        String uuid = request.pathVariable("id");
+//        return this.productRepository.findById(uuid)
+//                .flatMap(f -> {
+//                    return this.productRepository.deleteById(f.getId())
+//                            .then(ServerResponse.ok().build());
+//                })
+//                .switchIfEmpty(ServerResponse.notFound().build());
     }
 
     /**
@@ -104,23 +112,62 @@ public class ClassificationHandler {
         return request.exchange()
                 .getFormData()
                 .flatMap(u -> {
-                    return this.classificationRepository.findById(uuid)
+                    return this.productRepository.findById(uuid)
                             .map(m -> {
                                 if (Objects.nonNull(u.getFirst("name"))) {
                                     m.setName(u.getFirst("name"));
+                                }
+                                if (Objects.nonNull(u.getFirst("classificationId"))) {
+                                    m.setClassificationId(u.getFirst("classificationId"));
+                                }
+                                if (Objects.nonNull(u.getFirst("price"))) {
+                                    m.setPrice(Double.valueOf(Objects.requireNonNull(u.getFirst("price"))));
+                                }
+                                if (Objects.nonNull(u.getFirst("brief"))) {
+                                    m.setBrief(u.getFirst("brief"));
+                                }
+                                if (Objects.nonNull(u.getFirst("img"))) {
+                                    m.setImg(u.getFirst("img"));
                                 }
                                 return m;
                             })
                             .flatMap(f -> {
                                 //                    校验参数
-                                String check = CheckUtil.check(f, ClassificationEditValid.class);
+                                String check = CheckUtil.check(f, ProductEditValid.class);
                                 if (check != null && !check.isEmpty()) {
                                     return ServerResponse
                                             .status(HttpStatus.BAD_REQUEST)
                                             .bodyValue(check);
                                 }
 
-                                return this.classificationRepository.save(f)
+                                return this.productRepository.save(f)
+                                        .flatMap(a -> {
+                                            return ServerResponse.ok().build();
+                                        });
+                            })
+                            .switchIfEmpty(ServerResponse
+                                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                    .bodyValue("未查询到当前数据"));
+                });
+    }
+
+    /**
+     * @param request
+     * @return
+     */
+    public Mono<ServerResponse> uord(ServerRequest request) {
+        String uuid = request.pathVariable("id");
+        return request.exchange()
+                .getFormData()
+                .flatMap(u -> {
+                    return this.productRepository.findById(uuid)
+                            .map(m -> {
+                                int i = (m.getShelf() == null || m.getShelf() < 0) ? 0 : -1;
+                                m.setShelf(i);
+                                return m;
+                            })
+                            .flatMap(f -> {
+                                return this.productRepository.save(f)
                                         .flatMap(a -> {
                                             return ServerResponse.ok().build();
                                         });
@@ -139,7 +186,7 @@ public class ClassificationHandler {
      */
     public Mono<ServerResponse> one(ServerRequest request) {
         String uuid = request.pathVariable("id");
-        return this.classificationRepository.findById(uuid)
+        return this.productRepository.findById(uuid)
                 .flatMap(f -> {
                     return ServerResponse
                             .ok()
@@ -162,24 +209,17 @@ public class ClassificationHandler {
         int pageNow = Integer.parseInt(request.pathVariable("pageNow"));
         List<Sort.Order> orders = new ArrayList<>();
         orders.add(Sort.Order.asc("name"));
-        if (pageSize > 0) {
-            return request.formData()
-                    .flatMap(u -> {
-                        ClassificationModel model = new ClassificationModel();
-                        if (u.getFirst("name") != null && !Objects.requireNonNull(u.getFirst("name")).isEmpty()) {
-                            model.setName(u.getFirst("name"));
-                        }
-                        Flux<ClassificationModel> ClassificationModelFlux = this.classificationRepository.findAll(Example.of(model), Sort.by(orders))
-                                .skip(pageNow * pageSize)
-                                .limitRequest(pageSize);
-                        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(ClassificationModelFlux, Flux.class);
-                    });
-        }else{
-            return request.formData()
-                    .flatMap(u -> {
-                        Flux<ClassificationModel> ClassificationModelFlux = this.classificationRepository.findAll(Sort.by(orders));
-                        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(ClassificationModelFlux, Flux.class);
-                    });
-        }
+        return request.formData()
+                .flatMap(u -> {
+                    ProductModel model = new ProductModel();
+                    if (u.getFirst("name") != null && !Objects.requireNonNull(u.getFirst("name")).isEmpty()) {
+                        model.setName(u.getFirst("name"));
+                    }
+                    Flux<ProductModel> ProductModelFlux = this.productRepository.findAll(Example.of(model), Sort.by(orders))
+                            .skip(pageNow * pageSize)
+                            .limitRequest(pageSize);
+                    return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).body(ProductModelFlux, Flux.class);
+
+                });
     }
 }

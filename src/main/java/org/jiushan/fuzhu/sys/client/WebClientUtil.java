@@ -1,4 +1,4 @@
-package org.jiushan.fuzhu.sys;
+package org.jiushan.fuzhu.sys.client;
 
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;

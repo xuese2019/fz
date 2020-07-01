@@ -1,6 +1,9 @@
 server:
   port: 9000
 spring:
+#  "classpath:/META-INF/resources/", "classpath:/resources/", "classpath:/static/", "classpath:/public/"
+  resources:
+    static-locations: classpath:/META-INF/resources/,classpath:/resources/,classpath:/static/,classpath:/public/,file:${custom.file}
   thymeleaf:
     encoding: UTF-8
     mode: LEGACYHTML5
@@ -17,3 +20,6 @@ logging:
   level:
     org.springframework.data.mongodb.core: debug
     web: debug
+# 自定义属性
+custom:
+  file: D:/testFile/

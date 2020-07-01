@@ -12,6 +12,7 @@ $(document).ajaxError(function(event,xhr,options,exc){
                 location.replace(root+"/");
                 return;
             }
+            break;
         case 403:
             // 未授权异常
             alert("系统拒绝：您没有访问权限。");

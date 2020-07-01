@@ -1,4 +1,4 @@
-package org.jiushan.fuzhu.sys;
+package org.jiushan.fuzhu.sys.filter;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
