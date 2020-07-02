@@ -13,9 +13,12 @@ import javax.validation.constraints.NotNull;
 @Data
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 @Document(collection = "stock_table")
+//更改数据库存储的_class字段内容
+//@TypeAlias("stock")
 public class StockModel {
 
     @Id
+//    @MongoId
     private String id;
 
     //    商品

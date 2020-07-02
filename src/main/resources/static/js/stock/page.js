@@ -31,8 +31,10 @@ function page(pageNow){
                 pageUpOrDow(1);
             }else{
                 $(req).each(function(i,e){
-                    var r = ttr((i+1),e);
-                    $("#datas").append(r);
+                    $(e.stockInfo).each(function(i2,e2){
+                        var r = ttr((i+i2+1),e2,e.name);
+                        $("#datas").append(r);
+                    });
                 });
             }
         },
@@ -43,16 +45,10 @@ function page(pageNow){
         }
     });
 }
-function ttr(i,e){
-    let productName = "";
-    $("#productId-add").find("option").each(function(i,o){
-        if($(o).attr("value") == e.productId){
-            productName = $(o).text();
-        }
-    });
+function ttr(i,e,n){
     return "<tr>"+
             "<td>"+i+"</td>"+
-            "<td>"+productName+"</td>"+
+            "<td>"+n+"</td>"+
             "<td>"+e.specifications+"</td>"+
             "<td>"+e.stock+"</td>"+
             "<td>"+

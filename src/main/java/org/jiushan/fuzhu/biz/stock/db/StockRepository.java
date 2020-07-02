@@ -6,7 +6,13 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
 
 @Repository
+//public interface StockRepository extends MongoOperations {
+//    Mono<StockModel> findBySpecificationsAndProductId(String specifications,String productId);
+//}
 public interface StockRepository extends ReactiveMongoRepository<StockModel, String> {
 
-    Mono<StockModel> findBySpecifications(String specifications);
+    Mono<StockModel> findBySpecificationsAndProductId(String specifications, String productId);
+
+//    List<Map<String, String>> findStockList(Query query, String name, Aggregation customerAgg, Class<?> cla);
+
 }
